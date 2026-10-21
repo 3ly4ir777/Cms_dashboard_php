@@ -33,3 +33,9 @@ class DB {
     }
 
 }
+
+// en el contenedor limpio de podman la IA me dijo que para instalar la extension pdo_mysql de PHP en el contenedor de Podman, debo ejecutar el siguiente comando: 
+//podman exec -it mi_php_backend docker-php-ext-install pdo_mysql
+
+// y este es para dar permisos a la carpeta del proyecto en Fedora con Podman, para que el servidor web pueda acceder a ella correctamente:
+//chmod -R 755 ~/Descargas/"Proyectos Programacion"/EliasCms

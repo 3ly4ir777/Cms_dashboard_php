@@ -6,7 +6,23 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./backend/public:/var/www/html:Z
+      # Mapeamos TODO el backend en la ruta base del contenedor.
+      # La bandera ':Z' le indica a Podman que configure 
+      # automáticamente las etiquetas de SELinux en Fedora para permitir el acceso 
+      # al contenedor sin romper la seguridad del sistema anfitrión.
+      - ./backend:/var/www:Z
+
+    environment:
+      # Le indicamos a Apache que la raíz pública real es la subcarpeta public
+      APA_DOCUMENT_ROOT: /var/www/public
+      APACHE_DOCUMENT_ROOT: /var/www/public
+
+    command: >
+      sh -c "docker-php-ext-install pdo_mysql &&
+             sed -ri -e 's!/var/www/html!/var/www/public!g' /etc/apache2/sites-available/*.conf &&
+             sed -ri -e 's!/var/www/!/var/www/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf &&
+             docker-php-entrypoint apache2-foreground"
+
     depends_on:
       - db
 
@@ -15,7 +31,7 @@ services:
     image: docker.io/library/mariadb:latest
     container_name: mi_mysql_db
     environment:
-      MYSQL_ROOT_PASSWORD: 
+      MYSQL_ROOT_PASSWORD: tuchave_secreta
       MYSQL_DATABASE: ecommerce_db
     volumes:
       - db_data:/var/lib/mysql

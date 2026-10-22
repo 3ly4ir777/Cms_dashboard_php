@@ -1,10 +1,10 @@
 <?php
 
 class DB {
-    private $host = "localhost";
+    private $host = "db";
     private $db_name = "ecommerce_db";
     private $username = "root";
-    private $password = "";
+    private $password = "tuchave_secreta";
     public $conn;
 
     public function getConnection() {
@@ -36,6 +36,8 @@ class DB {
 
 // en el contenedor limpio de podman la IA me dijo que para instalar la extension pdo_mysql de PHP en el contenedor de Podman, debo ejecutar el siguiente comando: 
 //podman exec -it mi_php_backend docker-php-ext-install pdo_mysql
+//ya no, ahora lo inclui en el contenedor
 
 // y este es para dar permisos a la carpeta del proyecto en Fedora con Podman, para que el servidor web pueda acceder a ella correctamente:
 //chmod -R 755 ~/Descargas/"Proyectos Programacion"/EliasCms
+//no correr ese comando, mejor es usar la bandera :Z en el compose.yaml para que podman configure automaticamente los permisos de SELinux en Fedora, para que el contenedor pueda acceder a la carpeta del proyecto sin problemas de permisos.

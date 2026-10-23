@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Administrador 🐣</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-B/GM4XqrwHnWXNOWMbloTmrYXZg10cakYGmpfsR/bbzQ6JAJI4ihuyADKLnBgrCe" crossorigin="anonymous">
+    <style>
+        body { background-color: #f4f6f9; height: 100vh; display: flex; align-items: center; }
+        .card-login { max-width: 400px; width: 100%; border: none; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="container d-flex justify-content-center">
+        <div class="card card-login p-5 bg-white">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-dark">¡Hola de nuevo! 🐧</h2>
+                <p class="text-muted">Ingresa tus credenciales de Administrador</p>
+            </div>
+
+            <!-- Alerta flotante para errores o éxito -->
+            <div id="alerta" class="alert d-none" role="alert"></div>
+
+            <form id="formLogin">
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Nombre de Usuario</label>
+                    <input type="text" id="usuario" class="form-control form-control-lg" placeholder="ej: usuario" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <input type="password" id="password" class="form-control form-control-lg" placeholder="••••••••" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Código Especial (Admin)</label>
+                    <input type="number" id="codigo_especial" class="form-control form-control-lg" placeholder="ej: 777" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm">Iniciar Sesión 🚀</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript para conectar con Podman con Fetch -->
+    <script>
+        document.getElementById('formLogin').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Evitar que la página se recargue
+
+            const usuario = document.getElementById('usuario').value;
+            const password = document.getElementById('password').value;
+            const codigo_especial = parseInt(document.getElementById('codigo_especial').value);
+            const alerta = document.getElementById('alerta');
+
+            // Los datos tal y como los espera recibir tu AuthController en json_decode
+            const datos = {
+                usuario: usuario,
+                password: password,
+                codigo_especial: codigo_especial
+            };
+
+            try {
+                // Tu servidor en Podman corre en el puerto 8080
+                const respuesta = await fetch('http://localhost:8080/login_api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                const resultado = await respuesta.json();
+
+                alerta.classList.remove('d-none', 'alert-danger', 'alert-success');
+
+                if (respuesta.ok) {
+                    alerta.classList.add('alert-success');
+                    alerta.textContent = resultado.message + " 🎉 Redirigiendo...";
+                    // Aquí podrías mandarlo a la página del backend/dashboard después de 2 segundos
+                } else {
+                    alerta.classList.add('alert-danger');
+                    alerta.textContent = resultado.message || 'Error al iniciar sesión';
+                }
+            } catch (error) {
+                alerta.classList.remove('d-none');
+                alerta.classList.add('alert-danger');
+                alerta.textContent = 'No se pudo conectar con el servidor en Podman ❌';
+            }
+        });
+    </script>
+
+</body>
+</html>

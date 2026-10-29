@@ -1,22 +1,18 @@
 <?php
-// login_api.php
-require_once __DIR__ . '/../controllers/AuthController.php';
-
-// Permitir que el frontend acceda (CORS) si están en carpetas o puertos separados
+// CORS PRIMERO
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Credentials: true");
 
-// Si es una petición de verificación (Preflight), cortar aquí
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-// Solo aceptar peticiones POST
+require_once __DIR__ . '/../controllers/AuthController.php';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $auth = new AuthController();
-    $auth->login();
+    (new AuthController())->login();
 } else {
     http_response_code(405);
+    header('Content-Type: application/json');
     echo json_encode(["status" => "error", "message" => "Método no permitido"]);
 }

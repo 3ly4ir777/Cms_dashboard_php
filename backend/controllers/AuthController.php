@@ -1,93 +1,71 @@
 <?php
-    session_start();
-    require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/auth_helper.php';
 
-    class AuthController{
-        private $db;
+class AuthController {
+    private $db;
 
-        public function __construct(){
-            $database = new DB();
-            $this->db = $database->getConnection();
+    public function __construct() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $database = new DB();
+        $this->db = $database->getConnection();
+    }
+
+    public function login() {
+        header('Content-Type: application/json; charset=utf-8');
+        $data = json_decode(file_get_contents("php://input"), true) ?: [];
+
+        $usuario  = trim($data['usuario'] ?? '');
+        $password = $data['password'] ?? '';
+        $codigo   = filter_var($data['codigo_especial'] ?? null, FILTER_VALIDATE_INT);
+
+        if ($usuario === '' || $password === '' || $codigo === false || $codigo === null) {
+            json_response(["status" => "error", "message" => "Todos los campos son obligatorios y el código debe ser numérico"], 400);
         }
 
-        // Iniciar sesión como administrador con usuario, contraseña y código especial
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT id, usuario, password_hash, codigo_especial
+                 FROM administradores WHERE usuario = :usuario LIMIT 1"
+            );
+            $stmt->execute([':usuario' => $usuario]);
+            $admin = $stmt->fetch();
 
-        // tarea que se inicie sesion no con correo sino usuario y contraseña
-
-        public function login(){
-            header('Content-Type: application/json; charset=utf-8');
-
-            // Leer los datos JSON que llegan del formulario
-            $data = json_decode(file_get_contents("php://input"), true);
-
-            $usuario = filter_var($data['usuario'] ?? '', FILTER_DEFAULT);
-            $password = $data['password'] ?? '';
-
-            $CodeEncode = filter_var($data['codigo_especial'] ?? '', FILTER_VALIDATE_INT); 
-
-// tarea aqui deberia ir codigo de la negacion aqui va a ser el codigo especial que se le da al usuario para que pueda iniciar sesion como administrador
-
-// 1. Validación básica: que no vengan vacíos
-            if (empty($usuario) || empty($password) || !$CodeEncode) {
-                http_response_code(400);
-                echo json_encode(["status" => "error", "message" => "Todos los campos son obligatorios y el código debe ser un número"]);
-                return;
+            // Mismo mensaje para "no existe" y "password mal" → no filtrar info
+            if (!$admin || !password_verify($password, $admin['password_hash'])) {
+                json_response(["status" => "error", "message" => "Credenciales incorrectas"], 401);
             }
 
-            try {
-                // 2. Buscar al administrador por su nombre de usuario
-                $query = "SELECT id, usuario, password_hash, codigo_especial FROM administradores WHERE usuario = :usuario LIMIT 1";
-                $stmt = $this->db->prepare($query);
-                $stmt->bindParam(':usuario', $usuario);
-                $stmt->execute();
-
-                $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                // 3. Verificar si el usuario existe
-                if (!$admin) {
-                    http_response_code(401);
-                    echo json_encode(["status" => "error", "message" => "Credenciales incorrectas"]);
-                    return;
-                }
-
-                // 4. Validar el Código Especial (Tu tarea de negación/validación)
-                if ($admin['codigo_especial'] !== $CodeEncode) {
-                    http_response_code(401);
-                    echo json_encode(["status" => "error", "message" => "El código especial de administrador no es válido"]);
-                    return;
-                }
-
-                // 5. Validar la contraseña (Soporta Argon2id automáticamente)
-                if (password_verify($password, $admin['password_hash'])) {
-                    // ¡Login exitoso! Guardamos al usuario en la sesión
-                    $_SESSION['admin_user'] = [
-                        "id" => $admin['id'],
-                        "usuario" => $admin['usuario']
-                    ];
-
-                    http_response_code(200);
-                    echo json_encode(["status" => "success", "message" => "¡Bienvenido al Backend, amiguito!"]);
-                } else {
-                    http_response_code(401);
-                    echo json_encode(["status" => "error", "message" => "Credenciales incorrectas"]);
-                }
-
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(["status" => "error", "message" => "Error en el servidor: " . $e->getMessage()]);
+            //  Casteo a int para comparar seguro
+            if ((int)$admin['codigo_especial'] !== (int)$codigo) {
+                json_response(["status" => "error", "message" => "Código especial inválido"], 401);
             }
-        }
 
+            // Regenerar ID de sesión al loguear (evita session fixation)
+            session_regenerate_id(true);
+            $_SESSION['admin_user'] = [
+                "id"      => (int)$admin['id'],
+                "usuario" => $admin['usuario'],
+            ];
 
-        //Cerrar sesion 
-        public function logout(){
-            header('Content-Type: application/json; charset=utf-8');
-            unset($_SESSION['admin_user']);
-            session_destroy();
-
-            http_response_code(200);
-            echo json_encode(["status" => "success", "message" => "Sesión cerrada correctamente"]);
-        
+            json_response(["status" => "success", "message" => "¡Bienvenido al panel, amiguito!", "usuario" => $admin['usuario']]);
+        } catch (PDOException $e) {
+            json_response(["status" => "error", "message" => "Error interno del servidor"], 500);
         }
     }
+
+    //Cerrar sesion 
+    public function logout() {
+        $_SESSION = [];
+        if (ini_get("session.use_cookies")) {
+            $p = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $p["path"], $p["domain"], $p["secure"], $p["httponly"]);
+        }
+        session_destroy();
+        json_response(["status" => "success", "message" => "Sesión cerrada"]);
+    }
+}
 

@@ -2,48 +2,78 @@
 require_once __DIR__ . '/config/db.php';
 
 try {
-    $database = new DB();
-    $db = $database->getConnection();
+    $db = (new DB())->getConnection();
+    echo "🌱 Migrando...\n";
 
-    echo "🌱 Iniciando migración desde el backend...\n";
-
-    // 1. El código SQL para crear la tabla si no existe
-    $sqlTabla = "CREATE TABLE IF NOT EXISTS administradores (
+    // --- administradores (ya existía) ---
+    $db->exec("CREATE TABLE IF NOT EXISTS administradores (
         id INT AUTO_INCREMENT PRIMARY KEY,
         usuario VARCHAR(50) NOT NULL UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         codigo_especial INT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "✅ administradores OK\n";
 
-    $db->exec($sqlTabla);
-    echo "✅ Tabla 'administradores' creada o verificada con éxito.\n";
+    // --- productos ---
+    $db->exec("CREATE TABLE IF NOT EXISTS productos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(120) NOT NULL,
+        descripcion TEXT NULL,
+        precio DECIMAL(10,2) NOT NULL DEFAULT 0,
+        stock INT NOT NULL DEFAULT 0,
+        categoria VARCHAR(60) NULL,
+        imagen_url VARCHAR(255) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "✅ productos OK\n";
 
-    // 2. Verificar si ya existe nuestro usuario de prueba para no duplicarlo
+    // --- ordenes ---
+    $db->exec("CREATE TABLE IF NOT EXISTS ordenes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cliente_nombre VARCHAR(120) NOT NULL,
+        cliente_email VARCHAR(120) NULL,
+        total DECIMAL(10,2) NOT NULL DEFAULT 0,
+        estado ENUM('pendiente','pagada','enviada','entregada','cancelada') NOT NULL DEFAULT 'pendiente',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "✅ ordenes OK\n";
+
+    // --- items de orden ---
+    $db->exec("CREATE TABLE IF NOT EXISTS orden_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        orden_id INT NOT NULL,
+        producto_id INT NOT NULL,
+        cantidad INT NOT NULL,
+        precio_unitario DECIMAL(10,2) NOT NULL,
+        FOREIGN KEY (orden_id) REFERENCES ordenes(id) ON DELETE CASCADE,
+        FOREIGN KEY (producto_id) REFERENCES productos(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "✅ orden_items OK\n";
+
+    // --- admin de prueba ---
     $stmt = $db->prepare("SELECT COUNT(*) FROM administradores WHERE usuario = 'amiguito'");
     $stmt->execute();
-    
     if ($stmt->fetchColumn() == 0) {
-        // Encriptamos con Argon2id directamente desde el backend
-        $password_hash = password_hash('secreto123', PASSWORD_ARGON2ID);
-        $codigo_especial = 777;
-
-        $sqlInsert = "INSERT INTO administradores (usuario, password_hash, codigo_especial) VALUES (:usuario, :password, :codigo)";
-        $insertStmt = $db->prepare($sqlInsert);
-        $insertStmt->execute([
-            ':usuario' => 'amiguito',
-            ':password' => $password_hash,
-            ':codigo' => $codigo_especial
-        ]);
-        echo "👤 Usuario administrador de prueba ('amiguito') creado con éxito.\n";
-    } else {
-        echo "ℹ️ El usuario de prueba ya existía, no se duplicó.\n";
+        $db->prepare("INSERT INTO administradores (usuario, password_hash, codigo_especial) VALUES (?, ?, ?)")
+           ->execute(['amiguito', password_hash('secreto123', PASSWORD_ARGON2ID), 777]);
+        echo "👤 admin 'amiguito' creado (pass: secreto123, código: 777)\n";
     }
 
-    echo "🚀 ¡Migración completada con éxito, amiguito!\n";
+    // --- productos de prueba ---
+    $stmt = $db->prepare("SELECT COUNT(*) FROM productos");
+    $stmt->execute();
+    if ($stmt->fetchColumn() == 0) {
+        $ins = $db->prepare("INSERT INTO productos (nombre, descripcion, precio, stock, categoria) VALUES (?,?,?,?,?)");
+        $ins->execute(['Teclado mecánico', 'Switch azul, retroiluminado', 45.90, 12, 'Periféricos']);
+        $ins->execute(['Mouse gamer', 'RGB 12800 DPI', 29.50, 30, 'Periféricos']);
+        $ins->execute(['Monitor 24"', 'Full HD 75Hz', 149.99, 8, 'Monitores']);
+        echo "📦 3 productos de ejemplo insertados\n";
+    }
 
+    echo "🚀 ¡Migración completa, amiguito!\n";
 } catch (PDOException $e) {
-    echo "❌ Error en la migración: " . $e->getMessage() . "\n";
+    echo "❌ Error: " . $e->getMessage() . "\n";
 }
 
 

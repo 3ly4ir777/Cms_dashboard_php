@@ -1,0 +1,28 @@
+# Credenciales de producción (InfinityFree)
+backend/config/db_credentials.php
+
+# Archivos de sesión PHP
+*.log
+backend/public/*.log
+
+# Comprobaciones de curl
+cookies.txt
+*.cookie
+
+# Datos de la BD (si alguna vez los vuelcas)
+*.sql
+!migrar.php
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Podman / compose local overrides
+compose.override.yaml

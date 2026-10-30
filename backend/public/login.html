@@ -59,8 +59,9 @@
                 codigo_especial: codigo_especial
             };
 
+            //si la pagna esta en frontend entonces seria fetch('http://localhost:8080/backend/login_api.php', { ... }) pero como esta en el mismo origen, no hace falta poner la url completa, solo el nombre del archivo
             try {
-                const respuesta = await fetch('login_api.php', {   // 👈 relativa, misma origin
+                const respuesta = await fetch('login_api.php', {   //misma origin 
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },

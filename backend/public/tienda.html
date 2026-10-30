@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tienda 🛒</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+    body{background:#f4f6f9}
+    .producto{transition:transform .15s}
+    .producto:hover{transform:translateY(-3px)}
+    .card-prod{border:none;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary px-3">
+    <span class="navbar-brand">🛒 Tienda</span>
+    <div class="ms-auto">
+        <span class="text-white me-3" id="userName"></span>
+        <button class="btn btn-outline-light btn-sm me-2" data-bs-toggle="offcanvas" data-bs-target="#cartPanel">
+        🛍️ Carrito <span class="badge bg-warning text-dark" id="cartCount">0</span>
+        </button>
+        <button class="btn btn-outline-light btn-sm" onclick="logout()">Salir</button>
+    </div>
+    </nav>
+
+    <div class="container py-4">
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item"><button class="nav-link active" data-tab="cat">Catálogo</button></li>
+        <li class="nav-item"><button class="nav-link" data-tab="mis">Mis órdenes</button></li>
+    </ul>
+
+    <div id="tab-cat" class="row g-3"></div>
+
+    <div id="tab-mis" class="d-none">
+        <div class="table-responsive"><table class="table table-hover bg-white">
+        <thead><tr><th>#</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+        <tbody id="misOrdenes"></tbody>
+        </table></div>
+    </div>
+    </div>
+
+    <!-- Carrito lateral -->
+    <div class="offcanvas offcanvas-end" id="cartPanel">
+    <div class="offcanvas-header">
+        <h5>🛍️ Tu carrito</h5>
+        <button class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column">
+        <div id="cartList" class="flex-grow-1"></div>
+        <hr>
+        <div class="d-flex justify-content-between fw-bold mb-3">
+        <span>Total:</span><span id="cartTotal">$0.00</span>
+        </div>
+        <button class="btn btn-success w-100 rounded-pill" onclick="checkout()">Confirmar orden</button>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    const API = { prods: 'productos_api.php', ordenes: 'cliente_ordenes_api.php' };
+    let productos = [];
+    let cart = {}; // {producto_id: cantidad}
+
+    // --- auth ---
+    async function checkAuth() {
+    const r = await fetch('cliente_check_auth.php', { credentials:'include' });
+    if (!r.ok) { location.href = 'cliente_login.html'; return null; }
+    return (await r.json()).cliente;
+    }
+    async function logout() {
+    await fetch('logout_api.php', { credentials:'include' });
+    location.href = 'cliente_login.html';
+    }
+
+    // --- tabs ---
+    document.querySelectorAll('.nav-tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tabs button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-cat').classList.toggle('d-none', b.dataset.tab !== 'cat');
+    document.getElementById('tab-mis').classList.toggle('d-none', b.dataset.tab !== 'mis');
+    if (b.dataset.tab === 'mis') cargarMisOrdenes();
+    }));
+
+    // --- catálogo ---
+    async function cargarCatalogo() {
+    const r = await fetch(API.prods);
+    const d = await r.json();
+    productos = d.data;
+    document.getElementById('tab-cat').innerHTML = productos.map(p => `
+        <div class="col-md-4 producto">
+        <div class="card card-prod p-3 h-100">
+            <h5 class="card-title">${p.nombre}</h5>
+            <p class="text-muted small mb-2">${p.descripcion ?? ''}</p>
+            <div class="d-flex justify-content-between align-items-center">
+            <span class="fs-5 fw-bold text-success">$${Number(p.precio).toFixed(2)}</span>
+            <span class="badge bg-secondary">${p.categoria ?? 'General'}</span>
+            </div>
+            <div class="small text-muted my-2">Stock: ${p.stock}</div>
+            <button class="btn btn-primary btn-sm mt-auto" onclick="addCart(${p.id})"
+                    ${p.stock <= 0 ? 'disabled' : ''}>${p.stock > 0 ? 'Agregar al carrito' : 'Agotado'}</button>
+        </div>
+        </div>`).join('');
+    }
+
+    // --- carrito ---
+    function addCart(id) {
+    cart[id] = (cart[id] || 0) + 1;
+    renderCart();
+    bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('cartPanel')).show();
+    }
+    function renderCart() {
+    const ids = Object.keys(cart);
+    const count = ids.reduce((s,i) => s + cart[i], 0);
+    document.getElementById('cartCount').textContent = count;
+    if (!ids.length) {
+        document.getElementById('cartList').innerHTML = '<p class="text-muted">Carrito vacío</p>';
+        document.getElementById('cartTotal').textContent = '$0.00';
+        return;
+    }
+    let total = 0;
+    document.getElementById('cartList').innerHTML = ids.map(id => {
+        const p = productos.find(x => x.id == id);
+        const sub = p.precio * cart[id];
+        total += sub;
+        return `<div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <div class="fw-bold small">${p.nombre}</div>
+            <small class="text-muted">$${Number(p.precio).toFixed(2)}</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <input type="number" min="1" value="${cart[id]}" style="width:60px"
+            class="form-control form-control-sm"
+            onchange="setQty(${id}, this.value)">
+            <button class="btn btn-sm btn-outline-danger" onclick="rmCart(${id})">✕</button>
+        </div>
+        </div>`;
+    }).join('');
+    document.getElementById('cartTotal').textContent = '$' + total.toFixed(2);
+    }
+    function setQty(id, q) { q = parseInt(q); if (q>0) cart[id]=q; else delete cart[id]; renderCart(); }
+    function rmCart(id) { delete cart[id]; renderCart(); }
+
+    // --- checkout ---
+    async function checkout() {
+    const items = Object.keys(cart).map(id => ({producto_id: parseInt(id), cantidad: cart[id]}));
+    if (!items.length) { alert('Carrito vacío'); return; }
+    const r = await fetch(API.ordenes, {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({items})
+    });
+    const d = await r.json();
+    if (r.ok) {
+        alert('¡Orden #' + d.id + ' creada! 🎉');
+        cart = {}; renderCart();
+        bootstrap.Offcanvas.getInstance(document.getElementById('cartPanel')).hide();
+        cargarCatalogo(); // refresca stock
+    } else alert(d.message);
+    }
+
+    // --- mis órdenes ---
+    async function cargarMisOrdenes() {
+    const r = await fetch(API.ordenes, { credentials:'include' });
+    const d = await r.json();
+    document.getElementById('misOrdenes').innerHTML = d.data.map(o => `
+        <tr><td>#${o.id}</td>
+        <td>$${Number(o.total).toFixed(2)}</td>
+        <td><span class="badge bg-info">${o.estado}</span></td>
+        <td>${o.created_at}</td></tr>`).join('')
+        || '<tr><td colspan="4" class="text-center text-muted">Aún no tienes órdenes</td></tr>';
+    }
+
+    // --- init ---
+    (async () => {
+    const c = await checkAuth(); if (!c) return;
+    document.getElementById('userName').textContent = '👤 ' + c.nombre;
+    await cargarCatalogo();
+    })();
+    </script>
+</body>
+</html>

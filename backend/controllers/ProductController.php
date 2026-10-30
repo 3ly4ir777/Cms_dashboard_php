@@ -12,10 +12,9 @@ class ProductController {
     }
 
     public function handle($method) {
-        require_auth(); // 🔒 todos los endpoints requieren sesión
-
         switch ($method) {
             case 'GET':
+                // PÚBLICO — cualquier visitante ve el catálogo
                 if (isset($_GET['id'])) {
                     $p = $this->model->find((int)$_GET['id']);
                     $p ? json_response(["status"=>"success","data"=>$p])
@@ -23,6 +22,14 @@ class ProductController {
                 }
                 json_response(["status"=>"success","data"=>$this->model->all()]);
                 break;
+
+            case 'POST':
+            case 'PUT':
+            case 'DELETE':
+
+                require_auth(); // 🔒 solo admin puede modificar productos
+
+        switch ($method) {
 
             case 'POST':
                 $b = $this->body();
@@ -48,6 +55,7 @@ class ProductController {
 
             default:
                 json_response(["status"=>"error","message"=>"Método no permitido"],405);
+            }
         }
     }
 

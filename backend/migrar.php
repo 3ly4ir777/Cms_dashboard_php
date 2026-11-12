@@ -104,6 +104,19 @@ try {
         echo "👤 cliente 'cliente1' creado (pass: demo123)\n";
     }
 
+    // --- carrito_items (NUEVO: para persistir carrito en DB) ---
+    $db->exec("CREATE TABLE IF NOT EXISTS carrito_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cliente_id INT NOT NULL,
+        producto_id INT NOT NULL,
+        cantidad INT NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_cliente_producto (cliente_id, producto_id),
+        FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE,
+        FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "✅ carrito_items OK\n";
+
     echo "🚀 ¡Migración completa, amiguito!\n";
 } catch (PDOException $e) {
     echo "❌ Error: " . $e->getMessage() . "\n";

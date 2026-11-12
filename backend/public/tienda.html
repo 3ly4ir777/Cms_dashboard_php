@@ -57,9 +57,55 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    const API = { prods: 'productos_api.php', ordenes: 'cliente_ordenes_api.php' };
+    const API = { 
+    prods: 'productos_api.php', 
+    ordenes: 'cliente_ordenes_api.php',
+    carrito: 'cliente_carrito_api.php' 
+    };
     let productos = [];
     let cart = {}; // {producto_id: cantidad}
+
+    // --- Funciones del Carrito (DB) ---
+    async function cargarCarrito() {
+        const r = await fetch(API.carrito, { credentials: 'include' });
+        if (!r.ok) return;
+        const d = await r.json();
+        cart = {};
+        d.data.forEach(item => {
+            cart[item.producto_id] = item.cantidad;
+        });
+        renderCart();
+    }
+
+    async function addCart(id) {
+        cart[id] = (cart[id] || 0) + 1; // Optimista
+        renderCart();
+        bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('cartPanel')).show();
+        await fetch(API.carrito, {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ producto_id: id, cantidad: cart[id] })
+        });
+    }
+
+    async function setQty(id, q) {
+        q = parseInt(q);
+        if (q > 0) cart[id] = q; else delete cart[id];
+        renderCart();
+        await fetch(API.carrito, {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ producto_id: id, cantidad: q })
+        });
+    }
+
+    async function rmCart(id) {
+        delete cart[id];
+        renderCart();
+        await fetch(API.carrito + '?producto_id=' + id, {
+            method: 'DELETE', credentials: 'include'
+        });
+    }
 
     // --- auth ---
     async function checkAuth() {
@@ -175,6 +221,7 @@
     const c = await checkAuth(); if (!c) return;
     document.getElementById('userName').textContent = '👤 ' + c.nombre;
     await cargarCatalogo();
+    await cargarCarrito();
     })();
     </script>
 </body>

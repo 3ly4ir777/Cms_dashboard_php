@@ -58,6 +58,9 @@ class ClienteController {
             "usuario" => $c['usuario'],
             "nombre"  => $c['nombre'],
         ];
+
+        session_write_close(); 
+
         json_response([
             "status"  => "success",
             "message" => "¡Bienvenido a la tienda!",
